@@ -21,6 +21,7 @@ Features
 * SOCKS5 and HTTP proxy (CONNECT)
 
     We recommend using SOCKS5 server if available.
+    Looking for a good SOCKS5 server?  Take a look at our [usocksd][]!
 
     HTTP proxies often prohibits CONNECT method to make connections
     to ports other than 443.  Make sure your HTTP proxy allows CONNECT
@@ -115,5 +116,6 @@ Author
 
 [godoc]: https://godoc.org/github.com/cybozu-go/transocks
 [Squid]: http://www.squid-cache.org/
+[usocksd]: https://github.com/cybozu-go/usocksd
 [TOML]: https://github.com/toml-lang/toml
 [@ymmt2005]: https://github.com/ymmt2005
