@@ -33,14 +33,14 @@ type httpDialer struct {
 }
 
 func httpDialType(u *url.URL, forward proxy.Dialer) (proxy.Dialer, error) {
-	authz := ""
+	var header http.Header
 	if uu := u.User; uu != nil {
 		passwd, _ := uu.Password()
 		up := uu.Username() + ":" + passwd
-		authz = "Basic " + base64.StdEncoding.EncodeToString([]byte(up))
-	}
-	header := map[string][]string{
-		"Proxy-Authorization": []string{authz},
+		authz := "Basic " + base64.StdEncoding.EncodeToString([]byte(up))
+		header = map[string][]string{
+			"Proxy-Authorization": []string{authz},
+		}
 	}
 	return &httpDialer{
 		addr:    u.Host,

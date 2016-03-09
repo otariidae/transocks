@@ -23,6 +23,8 @@ func TestHTTPDialer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer conn.Close()
+
 	conn.Write([]byte("GET / HTTP/1.1\r\nHost: www.yahoo.com:80\r\nConnection: close\r\n\r\n"))
 	io.Copy(os.Stdout, conn)
 }
