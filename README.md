@@ -99,6 +99,8 @@ Save the following example to a file, then execute:
 COMMIT
 ```
 
+Use *ip6tables* to redirect IPv6 connections.
+
 Library usage
 -------------
 
