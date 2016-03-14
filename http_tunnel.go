@@ -113,6 +113,7 @@ PARSE:
 		c.Close()
 		return nil, e
 	}
+	resp.Body.Close()
 	if resp.StatusCode != 200 {
 		c.Close()
 		return nil, fmt.Errorf("proxy returns %s", resp.Status)
