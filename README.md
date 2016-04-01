@@ -48,8 +48,7 @@ Install
 Use Go 1.5 or better.
 
 ```
-go get github.com/cybozu-go/transocks
-go install github.com/cybozu-go/transocks/cmd/transocks
+go get github.com/cybozu-go/transocks/cmd/transocks
 ```
 
 Configuration file format
