@@ -100,7 +100,9 @@ func (s *Server) handleConnection(c *net.TCPConn) {
 	for i := 0; i < 2; i++ {
 		e := <-ch
 		if e != nil {
-			log.Error(e.Error(), nil)
+			log.Error(e.Error(), map[string]interface{}{
+				"_dst": addr,
+			})
 			break
 		}
 	}
