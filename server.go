@@ -89,7 +89,9 @@ func (s *Server) handleConnection(c *net.TCPConn) {
 
 	pconn, err := s.dialer.Dial("tcp", addr)
 	if err != nil {
-		log.Error(err.Error(), nil)
+		log.Error(err.Error(), map[string]interface{}{
+			"_dst": addr,
+		})
 		return
 	}
 	defer pconn.Close()
