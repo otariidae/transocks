@@ -1,79 +1,90 @@
-// transocks server.
 package main
 
 import (
 	"flag"
 	"fmt"
+	"net"
 	"net/url"
-	"os"
 
 	"github.com/BurntSushi/toml"
+	"github.com/cybozu-go/cmd"
 	"github.com/cybozu-go/log"
 	"github.com/cybozu-go/transocks"
 )
 
 type tomlConfig struct {
-	Listen   string
-	ProxyURL string `toml:"proxy_url"`
-	LogLevel string `toml:"log_level"`
-	LogFile  string `toml:"log_file"`
+	Listen   string        `toml:"listen"`
+	ProxyURL string        `toml:"proxy_url"`
+	Log      cmd.LogConfig `toml:"log"`
 }
 
 var (
-	configFile = flag.String("f", "/usr/local/etc/transocks.toml",
+	configFile = flag.String("f", "/etc/transocks.toml",
 		"TOML configuration file path")
 )
 
-func loadConfig() (*transocks.Config, string, error) {
+func loadConfig() (*transocks.Config, error) {
 	tc := new(tomlConfig)
 	md, err := toml.DecodeFile(*configFile, tc)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	if len(md.Undecoded()) > 0 {
-		return nil, "", fmt.Errorf("undecoded key in TOML: %v", md.Undecoded())
+		return nil, fmt.Errorf("undecoded key in TOML: %v", md.Undecoded())
 	}
 
 	c := transocks.NewConfig()
-	c.Listen = tc.Listen
+	c.Addr = tc.Listen
 
 	u, err := url.Parse(tc.ProxyURL)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	c.ProxyURL = u
 
-	if err = log.DefaultLogger().SetThresholdByName(tc.LogLevel); err != nil {
-		return nil, "", err
+	err = tc.Log.Apply()
+	if err != nil {
+		return nil, err
 	}
 
-	return c, tc.LogFile, nil
+	return c, nil
+}
+
+func serve(lns []net.Listener, c *transocks.Config) {
+	s, err := transocks.NewServer(c)
+	if err != nil {
+		log.ErrorExit(err)
+	}
+
+	for _, ln := range lns {
+		s.Serve(ln)
+	}
+	err = cmd.Wait()
+	if err != nil && !cmd.IsSignaled(err) {
+		log.ErrorExit(err)
+	}
 }
 
 func main() {
 	flag.Parse()
 
-	c, logfile, err := loadConfig()
+	c, err := loadConfig()
 	if err != nil {
 		log.ErrorExit(err)
 	}
 
-	if len(logfile) > 0 {
-		f, err := os.OpenFile(logfile, os.O_WRONLY|os.O_APPEND, 0644)
-		if err != nil {
-			log.ErrorExit(err)
-		}
-		defer f.Close()
-		log.DefaultLogger().SetOutput(f)
+	g := &cmd.Graceful{
+		Listen: func() ([]net.Listener, error) {
+			return transocks.Listeners(c)
+		},
+		Serve: func(lns []net.Listener) {
+			serve(lns, c)
+		},
 	}
+	g.Run()
 
-	srv, err := transocks.NewServer(c)
-	if err != nil {
+	err = cmd.Wait()
+	if err != nil && !cmd.IsSignaled(err) {
 		log.ErrorExit(err)
 	}
-	log.Info("server starts", nil)
-
-	srv.Serve()
-
-	log.Info("server ends", nil)
 }

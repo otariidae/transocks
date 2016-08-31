@@ -10,7 +10,10 @@ import (
 )
 
 const (
-	SO_ORIGINAL_DST      = 80
+	// SO_ORIGINAL_DST is a Linux getsockopt optname.
+	SO_ORIGINAL_DST = 80
+
+	// IP6T_SO_ORIGINAL_DST a Linux getsockopt optname.
 	IP6T_SO_ORIGINAL_DST = 80
 )
 
