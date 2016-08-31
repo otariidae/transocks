@@ -1,26 +1,39 @@
 package transocks
 
 import (
+	"context"
 	"io"
 	"net"
+	"sync"
 	"time"
 
+	"github.com/cybozu-go/cmd"
 	"github.com/cybozu-go/log"
+	"github.com/cybozu-go/netutil"
 	"golang.org/x/net/proxy"
 )
 
-var (
-	defaultDialer = &net.Dialer{
-		Timeout:   10 * time.Second,
-		KeepAlive: 60 * time.Second,
-	}
+const (
+	keepAliveTimeout = 3 * time.Minute
+	copyBufferSize   = 64 << 10
 )
+
+// Listeners returns a list of net.Listener.
+func Listeners(c *Config) ([]net.Listener, error) {
+	ln, err := net.Listen("tcp", c.Addr)
+	if err != nil {
+		return nil, err
+	}
+	return []net.Listener{ln}, nil
+}
 
 // Server provides transparent proxy server functions.
 type Server struct {
-	config   *Config
-	dialer   proxy.Dialer
-	listener net.Listener
+	cmd.Server
+	mode   Mode
+	logger *log.Logger
+	dialer proxy.Dialer
+	pool   sync.Pool
 }
 
 // NewServer creates Server.
@@ -30,99 +43,110 @@ func NewServer(c *Config) (*Server, error) {
 		return nil, err
 	}
 
-	dialer := defaultDialer
-	if c.Dialer != nil {
-		dialer = c.Dialer
+	dialer := c.Dialer
+	if dialer == nil {
+		dialer = &net.Dialer{
+			KeepAlive: keepAliveTimeout,
+			DualStack: true,
+		}
 	}
-	proxy_dialer, err := proxy.FromURL(c.ProxyURL, dialer)
+	pdialer, err := proxy.FromURL(c.ProxyURL, dialer)
 	if err != nil {
 		return nil, err
 	}
-
-	l, err := net.Listen("tcp", c.Listen)
-	if err != nil {
-		return nil, err
+	logger := c.Logger
+	if logger == nil {
+		logger = log.DefaultLogger()
 	}
 
-	return &Server{c, proxy_dialer, l}, nil
+	s := &Server{
+		Server: cmd.Server{
+			ShutdownTimeout: c.ShutdownTimeout,
+			Env:             c.Env,
+		},
+		mode:   c.Mode,
+		logger: logger,
+		dialer: pdialer,
+		pool: sync.Pool{
+			New: func() interface{} {
+				return make([]byte, copyBufferSize)
+			},
+		},
+	}
+	s.Server.Handler = s.handleConnection
+	return s, nil
 }
 
-// Serve accepts and handles new connections forever.
-func (s *Server) Serve() error {
-	for {
-		conn, err := s.listener.Accept()
-		if err != nil {
-			log.Critical(err.Error(), nil)
-			return err
-		}
-		tcp_conn, ok := conn.(*net.TCPConn)
-		if !ok {
-			conn.Close()
-			panic("not a TCPConn!")
-		}
-		go s.handleConnection(tcp_conn)
-	}
-}
-
-func (s *Server) handleConnection(c *net.TCPConn) {
-	defer c.Close()
-
-	var addr string
-
-	switch s.config.Mode {
-	case ModeNAT:
-		orig_addr, err := GetOriginalDST(c)
-		if err != nil {
-			log.Error(err.Error(), nil)
-			return
-		}
-		addr = orig_addr.String()
-	default:
-		addr = c.LocalAddr().String()
-	}
-
-	if log.Enabled(log.LvDebug) {
-		log.Debug("making proxy connection", map[string]interface{}{
-			"_dst": addr,
-		})
-	}
-
-	pconn, err := s.dialer.Dial("tcp", addr)
-	if err != nil {
-		log.Error(err.Error(), map[string]interface{}{
-			"_dst": addr,
+func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
+	tc, ok := conn.(*net.TCPConn)
+	if !ok {
+		s.logger.Error("non-TCP connection", map[string]interface{}{
+			"conn": conn,
 		})
 		return
 	}
-	defer pconn.Close()
 
-	ch := make(chan error, 2)
-	go copyData(c, pconn, ch)
-	go copyData(pconn, c, ch)
-	for i := 0; i < 2; i++ {
-		e := <-ch
-		if e != nil {
-			log.Error(e.Error(), map[string]interface{}{
-				"_dst": addr,
-			})
-			break
+	fields := cmd.FieldsFromContext(ctx)
+	fields[log.FnType] = "access"
+	fields["client_addr"] = conn.RemoteAddr().String()
+
+	var addr string
+	switch s.mode {
+	case ModeNAT:
+		origAddr, err := GetOriginalDST(tc)
+		if err != nil {
+			fields[log.FnError] = err.Error()
+			s.logger.Error("GetOriginalDST failed", fields)
+			return
 		}
+		addr = origAddr.String()
+	default:
+		addr = tc.LocalAddr().String()
 	}
+	fields["dest_addr"] = addr
 
-	if log.Enabled(log.LvDebug) {
-		log.Debug("closing proxy connection", map[string]interface{}{
-			"_dst": addr,
-		})
+	destConn, err := s.dialer.Dial("tcp", addr)
+	if err != nil {
+		fields[log.FnError] = err.Error()
+		s.logger.Error("failed to connect to proxy server", fields)
+		return
 	}
-}
+	defer destConn.Close()
 
-func copyData(dst io.Writer, src io.Reader, ch chan<- error) {
-	_, err := io.Copy(dst, src)
-	if tdst, ok := dst.(*net.TCPConn); ok {
-		tdst.CloseWrite()
+	s.logger.Info("proxy starts", fields)
+
+	// do proxy
+	st := time.Now()
+	env := cmd.NewEnvironment(ctx)
+	env.Go(func(ctx context.Context) error {
+		buf := s.pool.Get().([]byte)
+		_, err := io.CopyBuffer(destConn, tc, buf)
+		s.pool.Put(buf)
+		if hc, ok := destConn.(netutil.HalfCloser); ok {
+			hc.CloseWrite()
+		}
+		tc.CloseRead()
+		return err
+	})
+	env.Go(func(ctx context.Context) error {
+		buf := s.pool.Get().([]byte)
+		_, err := io.CopyBuffer(tc, destConn, buf)
+		s.pool.Put(buf)
+		tc.CloseWrite()
+		if hc, ok := destConn.(netutil.HalfCloser); ok {
+			hc.CloseRead()
+		}
+		return err
+	})
+	env.Stop()
+	err = env.Wait()
+
+	fields = cmd.FieldsFromContext(ctx)
+	fields["elapsed"] = time.Since(st).Seconds()
+	if err != nil {
+		fields[log.FnError] = err.Error()
+		s.logger.Error("proxy ends with an error", fields)
+		return
 	}
-	if tsrc, ok := src.(*net.TCPConn); ok {
-		tsrc.CloseRead()
-	}
-	ch <- err
+	s.logger.Info("proxy ends", fields)
 }

@@ -5,18 +5,32 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"time"
+
+	"github.com/cybozu-go/cmd"
+	"github.com/cybozu-go/log"
 )
 
 const (
-	// NAT mode
-	ModeNAT = "nat"
+	defaultShutdownTimeout = 1 * time.Minute
+)
+
+// Mode is the type of transocks mode.
+type Mode string
+
+func (m Mode) String() string {
+	return string(m)
+}
+
+const (
+	// ModeNAT is mode constant for NAT.
+	ModeNAT = Mode("nat")
 )
 
 // Config keeps configurations for Server.
 type Config struct {
-	// Listen is the listening address.
-	// e.g. "localhost:1081"
-	Listen string
+	// Addr is the listening address.
+	Addr string
 
 	// ProxyURL is the URL for upstream proxy.
 	//
@@ -27,27 +41,39 @@ type Config struct {
 	ProxyURL *url.URL
 
 	// Mode determines how clients are routed to transocks.
-	// Default is "nat".  No other options are available at this point.
-	Mode string
+	// Default is ModeNAT.  No other options are available at this point.
+	Mode Mode
+
+	// ShutdownTimeout is the maximum duration the server waits for
+	// all connections to be closed before shutdown.
+	//
+	// Zero duration disables timeout.  Default is 1 minute.
+	ShutdownTimeout time.Duration
 
 	// Dialer is the base dialer to connect to the proxy server.
 	// The server uses the default dialer if this is nil.
 	Dialer *net.Dialer
+
+	// Logger can be used to provide a custom logger.
+	// If nil, the default logger is used.
+	Logger *log.Logger
+
+	// Env can be used to specify a cmd.Environment on which the server runs.
+	// If nil, the server will run on the global environment.
+	Env *cmd.Environment
 }
 
 // NewConfig creates and initializes a new Config.
 func NewConfig() *Config {
 	c := new(Config)
 	c.Mode = ModeNAT
+	c.ShutdownTimeout = defaultShutdownTimeout
 	return c
 }
 
 // validate validates the configuration.
 // It returns non-nil error if the configuration is not valid.
 func (c *Config) validate() error {
-	if len(c.Listen) == 0 {
-		return errors.New("Listen is empty")
-	}
 	if c.ProxyURL == nil {
 		return errors.New("ProxyURL is nil")
 	}

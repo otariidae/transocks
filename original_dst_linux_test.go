@@ -22,10 +22,10 @@ func TestGetOriginalDST(t *testing.T) {
 	}
 	defer c.Close()
 
-	orig_addr, err := GetOriginalDST(c.(*net.TCPConn))
+	origAddr, err := GetOriginalDST(c.(*net.TCPConn))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	t.Log(orig_addr.String())
+	t.Log(origAddr.String())
 }
