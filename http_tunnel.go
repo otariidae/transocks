@@ -39,7 +39,7 @@ func httpDialType(u *url.URL, forward proxy.Dialer) (proxy.Dialer, error) {
 		up := uu.Username() + ":" + passwd
 		authz := "Basic " + base64.StdEncoding.EncodeToString([]byte(up))
 		header = map[string][]string{
-			"Proxy-Authorization": []string{authz},
+			"Proxy-Authorization": {authz},
 		}
 	}
 	return &httpDialer{
