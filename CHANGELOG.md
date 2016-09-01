@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - The default configuration file path is now `/etc/transocks.toml`.
+- "listen" config option becomes optional.  Default is "localhost:1081".
 - Configuration items for logging is changed.
 
 [cmd]: https://github.com/cybozu-go/cmd

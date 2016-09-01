@@ -66,12 +66,11 @@ Configuration file format
 
 `transocks.toml` is a [TOML][] file.
 
-`listen` and `proxy_url` are mandatory.
-Other items are optional.
+`proxy_url` are mandatory.  Other items are optional.
 
 ```
 # listening address of transocks.
-listen = "localhost:1081"
+listen = "localhost:1081"    # default is "localhost:1081"
 
 proxy_url = "socks5://10.20.30.40:1080"  # for SOCKS5 server
 #proxy_url = "http://10.20.30.40:3128"   # for HTTP proxy server

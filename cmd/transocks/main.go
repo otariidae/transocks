@@ -18,13 +18,19 @@ type tomlConfig struct {
 	Log      cmd.LogConfig `toml:"log"`
 }
 
+const (
+	defaultAddr = "localhost:1081"
+)
+
 var (
 	configFile = flag.String("f", "/etc/transocks.toml",
 		"TOML configuration file path")
 )
 
 func loadConfig() (*transocks.Config, error) {
-	tc := new(tomlConfig)
+	tc := &tomlConfig{
+		Listen: defaultAddr,
+	}
 	md, err := toml.DecodeFile(*configFile, tc)
 	if err != nil {
 		return nil, err
