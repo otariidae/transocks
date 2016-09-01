@@ -122,6 +122,7 @@ License
 
 [MIT](https://opensource.org/licenses/MIT)
 
+[releases]: https://github.com/cybozu-go/transocks/releases
 [godoc]: https://godoc.org/github.com/cybozu-go/transocks
 [Squid]: http://www.squid-cache.org/
 [usocksd]: https://github.com/cybozu-go/usocksd
