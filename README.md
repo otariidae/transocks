@@ -59,14 +59,14 @@ The default configuration file path is `/etc/transocks.toml`.
 In addition, transocks implements [the common spec](https://github.com/cybozu-go/cmd#specifications) from [`cybozu-go/cmd`](https://github.com/cybozu-go/cmd).
 
 transocks does not have *daemon* mode.  Use systemd to run it
-on your background.
+as a background service.
 
 Configuration file format
 -------------------------
 
 `transocks.toml` is a [TOML][] file.
 
-`proxy_url` are mandatory.  Other items are optional.
+`proxy_url` is mandatory.  Other items are optional.
 
 ```
 # listening address of transocks.
