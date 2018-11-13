@@ -9,14 +9,6 @@ import (
 	"unsafe"
 )
 
-const (
-	// SO_ORIGINAL_DST is a Linux getsockopt optname.
-	SO_ORIGINAL_DST = 80
-
-	// IP6T_SO_ORIGINAL_DST a Linux getsockopt optname.
-	IP6T_SO_ORIGINAL_DST = 80
-)
-
 func getsockopt(s int, level int, optname int, optval unsafe.Pointer, optlen *uint32) (err error) {
 	_, _, e := syscall.Syscall6(
 		syscall.SYS_GETSOCKOPT, uintptr(s), uintptr(level), uintptr(optname),
