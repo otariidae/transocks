@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- Update `github.com/cybozu-go/cmd` to `github.com/cybozu-go/well` (#7, #9).
+- Replace TravisCI with CircleCI.
+
 ## [1.0.0] - 2016-09-01
 ### Added
 - transocks now adopts [github.com/cybozu-go/cmd][cmd] framework.  
