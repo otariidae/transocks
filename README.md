@@ -1,8 +1,7 @@
 [![GitHub release](https://img.shields.io/github/release/cybozu-go/transocks.svg?maxAge=60)][releases]
 [![GoDoc](https://godoc.org/github.com/cybozu-go/transocks?status.svg)][godoc]
-[![Build Status](https://travis-ci.org/cybozu-go/transocks.svg?branch=master)](https://travis-ci.org/cybozu-go/transocks)
+[![CircleCI](https://circleci.com/gh/cybozu-go/coil.svg?style=svg)](https://circleci.com/gh/cybozu-go/transocks)
 [![Go Report Card](https://goreportcard.com/badge/github.com/cybozu-go/transocks)](https://goreportcard.com/report/github.com/cybozu-go/transocks)
-[![License](https://img.shields.io/github/license/cybozu-go/transocks.svg?maxAge=2592000)](LICENSE)
 
 transocks - a transparent SOCKS5/HTTP proxy
 ===========================================
