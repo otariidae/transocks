@@ -3,9 +3,9 @@
 package transocks
 
 import (
+	syscall "golang.org/x/sys/unix"
 	"net"
 	"os"
-	"syscall"
 	"unsafe"
 )
 
